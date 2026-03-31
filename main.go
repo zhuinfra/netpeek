@@ -26,13 +26,13 @@ type BilibiliIPResponse struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Data    struct {
-		Addr      string  `json:"addr"`
-		Country   string  `json:"country"`
-		Province  string  `json:"province"`
-		City      string  `json:"city"`
-		ISP       string  `json:"isp"`
-		Latitude  float64 `json:"latitude"`
-		Longitude float64 `json:"longitude"`
+		Addr      string `json:"addr"`
+		Country   string `json:"country"`
+		Province  string `json:"province"`
+		City      string `json:"city"`
+		ISP       string `json:"isp"`
+		Latitude  string `json:"latitude"`
+		Longitude string `json:"longitude"`
 	} `json:"data"`
 }
 
@@ -113,58 +113,77 @@ func getPublicIP() {
 		Timeout: 5 * time.Second,
 	}
 
-	// 先尝试国内API
 	fmt.Println("正在查询出口IP...")
+	fmt.Println("----------------------------------")
 
-	// 尝试腾讯API
-	qqIP, qqErr := getQQIP(client)
-	if qqErr == nil && qqIP.IP != "" {
-		fmt.Printf("出口IP: %s\n", qqIP.IP)
-		fmt.Printf("位置: %s %s %s\n", qqIP.Country, qqIP.Province, qqIP.City)
-		if qqIP.ISP != "" {
-			fmt.Printf("运营商: %s\n", qqIP.ISP)
-		}
-		fmt.Println("网络类型: 国内网络")
-		return
-	}
-
-	// 尝试B站API
+	// 1. 查询B站API（国内）
+	fmt.Println("api.live.bilibili.com(国内)")
 	bilibiliIP, biliErr := getBilibiliIP(client)
 	if biliErr == nil && bilibiliIP.Data.Addr != "" {
-		fmt.Printf("出口IP: %s\n", bilibiliIP.Data.Addr)
-		fmt.Printf("位置: %s %s %s\n", bilibiliIP.Data.Country, bilibiliIP.Data.Province, bilibiliIP.Data.City)
-		if bilibiliIP.Data.ISP != "" {
-			fmt.Printf("运营商: %s\n", bilibiliIP.Data.ISP)
-		}
-		fmt.Println("网络类型: 国内网络")
-		return
+		fmt.Printf(" IP:%s\n", bilibiliIP.Data.Addr)
+		fmt.Printf(" 位置:%s %s %s\n", bilibiliIP.Data.Country, bilibiliIP.Data.Province, bilibiliIP.Data.City)
+	} else {
+		fmt.Printf(" 错误: %v\n", biliErr)
 	}
+	fmt.Println()
 
-	// 国内API失败，尝试海外API
-	fmt.Println("国内API查询失败，尝试海外API...")
+	// 2. 查询腾讯API（国内）
+	fmt.Println("i.news.qq.com(国内)")
+	qqIP, qqErr := getQQIP(client)
+	if qqErr == nil && qqIP.IP != "" {
+		fmt.Printf(" IP:%s\n", qqIP.IP)
+		fmt.Printf(" 位置:%s %s %s\n", qqIP.Country, qqIP.Province, qqIP.City)
+	} else {
+		fmt.Printf(" 错误: %v\n", qqErr)
+	}
+	fmt.Println()
 
-	// 尝试Cloudflare API
+	// 3. 查询Cloudflare API（国际）
+	fmt.Println("Cloudflare(国际)")
 	cfIP, cfErr := getCloudflareIP(client)
 	if cfErr == nil && cfIP != "" {
-		// 再用ipinfo.io获取详细信息
-		ipinfo, ipinfoErr := getIpinfoIP(client, cfIP)
-		if ipinfoErr == nil {
-			fmt.Printf("出口IP: %s\n", ipinfo.IP)
-			fmt.Printf("位置: %s %s %s\n", getCountryName(ipinfo.Country), ipinfo.Region, ipinfo.City)
-			if ipinfo.Org != "" {
-				fmt.Printf("运营商: %s\n", ipinfo.Org)
-			}
-			if ipinfo.Timezone != "" {
-				fmt.Printf("时区: %s\n", ipinfo.Timezone)
-			}
-		} else {
-			fmt.Printf("出口IP: %s\n", cfIP)
+		fmt.Printf(" IP:%s\n", cfIP)
+		// 获取基本信息显示
+		ipinfo, _ := getIpinfoIP(client, cfIP)
+		if ipinfo != nil {
+			fmt.Printf(" Location:%s %s %s\n", ipinfo.Country, ipinfo.City, ipinfo.Org)
 		}
-		fmt.Println("网络类型: 海外网络")
-		return
+	} else {
+		fmt.Printf(" 错误: %v\n", cfErr)
 	}
+	fmt.Println()
 
-	fmt.Println("所有API查询失败，请检查网络连接")
+	// 4. 查询IPinfo.io API（国际）
+	fmt.Println("IPinfo.io(国际)")
+	// 先获取IP再查询详细信息
+	cfIPForIpinfo, _ := getCloudflareIP(client) // 复用Cloudflare的IP
+	if cfIPForIpinfo != "" {
+		ipinfo, ipinfoErr := getIpinfoIP(client, cfIPForIpinfo)
+		if ipinfoErr == nil {
+			fmt.Printf(" IP:%s\n", ipinfo.IP)
+			fmt.Printf(" Location:%s %s %s\n", ipinfo.Country, ipinfo.City, ipinfo.Org)
+		} else {
+			fmt.Printf(" 错误: %v\n", ipinfoErr)
+		}
+	} else {
+		// 如果Cloudflare失败，直接尝试IPinfo
+		// 注意：ipinfo.io直接访问会返回当前IP
+		resp, err := client.Get("https://ipinfo.io/json")
+		if err != nil {
+			fmt.Printf(" 错误: %v\n", err)
+		} else {
+			defer resp.Body.Close()
+			var result IpinfoResponse
+			err = json.NewDecoder(resp.Body).Decode(&result)
+			if err != nil {
+				fmt.Printf(" 错误: %v\n", err)
+			} else {
+				fmt.Printf(" IP:%s\n", result.IP)
+				fmt.Printf(" Location:%s %s %s\n", result.Country, result.City, result.Org)
+			}
+		}
+	}
+	fmt.Println("----------------------------------")
 }
 
 // getQQIP 从腾讯API获取IP信息
