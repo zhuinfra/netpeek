@@ -1,10 +1,12 @@
 package main
 
 import (
-	"flag"
+	"context"
 	"fmt"
 	"os"
 	"strconv"
+
+	"github.com/urfave/cli/v3"
 
 	"github.com/zhuinfra/netpeek/http"
 	"github.com/zhuinfra/netpeek/ip"
@@ -12,83 +14,103 @@ import (
 )
 
 func main() {
-	// 定义命令行参数
-	versionFlag := flag.Bool("version", false, "Print version information")
-	helpFlag := flag.Bool("help", false, "Print help information")
+	// 创建CLI命令
+	cmd := &cli.Command{
+		Name:    "netpeek",
+		Usage:   "Network monitoring command-line tool",
+		Version: "v0.1.0",
+		Description: "A powerful network monitoring tool with multiple features\n" +
+			"Commands include IP lookup, HTTP testing, WebSocket testing, and more.",
 
-	// 解析命令行参数
-	flag.Parse()
-
-	// 处理版本参数
-	if *versionFlag {
-		fmt.Println("NetPeek v0.1.0")
-		fmt.Println("Network monitoring command-line tool")
-		os.Exit(0)
+		// 添加子命令
+		Commands: []*cli.Command{
+			{
+				Name:    "ip",
+				Aliases: []string{"i"},
+				Usage:   "Show public IP address and location",
+				Description: "Display your public IP address from multiple sources (both domestic and international).\n" +
+					"Sources include: Bilibili API, Tencent API, Cloudflare API, and IPinfo.io API.",
+				Action: func(ctx context.Context, c *cli.Command) error {
+					ip.GetPublicIP()
+					return nil
+				},
+			},
+			{
+				Name:    "http",
+				Aliases: []string{"web", "h"},
+				Usage:   "Test website access",
+				Description: "Test website access performance with customizable rounds.\n" +
+					"Provides detailed metrics including DNS lookup, TCP connection, TLS handshake, TTFB, and total time.",
+				Action: func(ctx context.Context, c *cli.Command) error {
+					if c.NArg() < 1 {
+						return fmt.Errorf("Error: URL is required")
+					}
+					url := c.Args().First()
+					rounds := 3 // 默认3轮
+					if c.NArg() >= 2 {
+						roundsStr := c.Args().Get(1)
+						// 转换为整数
+						if roundsInt, err := strconv.Atoi(roundsStr); err == nil {
+							rounds = roundsInt
+						} else {
+							return fmt.Errorf("Error: Rounds must be a valid number")
+						}
+					}
+					http.TestWebsite(url, rounds)
+					return nil
+				},
+			},
+			{
+				Name:    "ws",
+				Aliases: []string{"websocket"},
+				Usage:   "Test WebSocket connection",
+				Description: "Test WebSocket connections with support for ws:// and wss:// protocols.\n" +
+					"Establishes connection, sends test message, and measures response time.",
+				Action: func(ctx context.Context, c *cli.Command) error {
+					if c.NArg() < 1 {
+						return fmt.Errorf("Error: WebSocket URL is required")
+					}
+					wsURL := c.Args().First()
+					websocket.TestWebSocket(wsURL)
+					return nil
+				},
+			},
+			{
+				Name:        "ping",
+				Aliases:     []string{"p"},
+				Usage:       "Check network connectivity",
+				Description: "Check network connectivity to specified hosts.",
+				Action: func(ctx context.Context, c *cli.Command) error {
+					fmt.Println("Ping command not implemented yet")
+					return nil
+				},
+			},
+			{
+				Name:        "speed",
+				Aliases:     []string{"s"},
+				Usage:       "Test network speed",
+				Description: "Test network upload and download speeds.",
+				Action: func(ctx context.Context, c *cli.Command) error {
+					fmt.Println("Speed test command not implemented yet")
+					return nil
+				},
+			},
+			{
+				Name:        "scan",
+				Aliases:     []string{"sc"},
+				Usage:       "Scan network ports",
+				Description: "Scan network ports on specified hosts.",
+				Action: func(ctx context.Context, c *cli.Command) error {
+					fmt.Println("Port scan command not implemented yet")
+					return nil
+				},
+			},
+		},
 	}
 
-	// 处理帮助参数
-	if *helpFlag || flag.NArg() == 0 {
-		printHelp()
-		os.Exit(0)
-	}
-
-	// 处理命令
-	command := flag.Arg(0)
-	switch command {
-	case "ip":
-		ip.GetPublicIP()
-	case "ping":
-		fmt.Println("Ping command not implemented yet")
-	case "speed":
-		fmt.Println("Speed test command not implemented yet")
-	case "scan":
-		fmt.Println("Port scan command not implemented yet")
-	case "ws":
-		if flag.NArg() < 2 {
-			fmt.Println("Usage: netpeek ws <websocket-url>")
-			fmt.Println("Example: netpeek ws wss://echo.websocket.org")
-			os.Exit(1)
-		}
-		wsURL := flag.Arg(1)
-		websocket.TestWebSocket(wsURL)
-	case "http":
-		if flag.NArg() < 2 {
-			fmt.Println("Usage: netpeek http <url> [rounds]")
-			fmt.Println("Example: netpeek http https://www.baidu.com 5")
-			os.Exit(1)
-		}
-		url := flag.Arg(1)
-		rounds := 3 // 默认3轮
-		if flag.NArg() >= 3 {
-			var err error
-			rounds, err = strconv.Atoi(flag.Arg(2))
-			if err != nil {
-				fmt.Println("Error: Invalid rounds value. Must be a number.")
-				os.Exit(1)
-			}
-		}
-		http.TestWebsite(url, rounds)
-	default:
-		fmt.Printf("Unknown command: %s\n", command)
-		printHelp()
+	// 运行应用
+	if err := cmd.Run(context.Background(), os.Args); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-}
-
-func printHelp() {
-	fmt.Println("NetPeek - Network monitoring command-line tool")
-	fmt.Println()
-	fmt.Println("Usage:")
-	fmt.Println("  netpeek [command] [options]")
-	fmt.Println()
-	fmt.Println("Commands:")
-	fmt.Println("  ip        Show public IP address and location")
-	fmt.Println("  ping      Check network connectivity")
-	fmt.Println("  speed     Test network speed")
-	fmt.Println("  scan      Scan network ports")
-	fmt.Println("  ws        Test WebSocket connection (supports ws:// and wss://)")
-	fmt.Println("  http      Test website access (supports custom rounds)")
-	fmt.Println()
-	fmt.Println("Options:")
-	flag.PrintDefaults()
 }
