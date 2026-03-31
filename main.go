@@ -4,7 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 
+	"github.com/zhuinfra/netpeek/http"
 	"github.com/zhuinfra/netpeek/ip"
 	"github.com/zhuinfra/netpeek/websocket"
 )
@@ -49,6 +51,23 @@ func main() {
 		}
 		wsURL := flag.Arg(1)
 		websocket.TestWebSocket(wsURL)
+	case "http":
+		if flag.NArg() < 2 {
+			fmt.Println("Usage: netpeek http <url> [rounds]")
+			fmt.Println("Example: netpeek http https://www.baidu.com 5")
+			os.Exit(1)
+		}
+		url := flag.Arg(1)
+		rounds := 3 // 默认3轮
+		if flag.NArg() >= 3 {
+			var err error
+			rounds, err = strconv.Atoi(flag.Arg(2))
+			if err != nil {
+				fmt.Println("Error: Invalid rounds value. Must be a number.")
+				os.Exit(1)
+			}
+		}
+		http.TestWebsite(url, rounds)
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		printHelp()
@@ -68,6 +87,7 @@ func printHelp() {
 	fmt.Println("  speed     Test network speed")
 	fmt.Println("  scan      Scan network ports")
 	fmt.Println("  ws        Test WebSocket connection (supports ws:// and wss://)")
+	fmt.Println("  http      Test website access (supports custom rounds)")
 	fmt.Println()
 	fmt.Println("Options:")
 	flag.PrintDefaults()
