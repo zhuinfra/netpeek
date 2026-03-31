@@ -18,7 +18,7 @@ func main() {
 	cmd := &cli.Command{
 		Name:    "netpeek",
 		Usage:   "Network monitoring command-line tool",
-		Version: "v0.1.0",
+		Version: "v1.1.0",
 		Description: "A powerful network monitoring tool with multiple features\n" +
 			"Commands include IP lookup, HTTP testing, WebSocket testing, and more.",
 

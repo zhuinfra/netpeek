@@ -11,6 +11,23 @@
 
 ## 安装
 
+### 方法一：下载预编译二进制文件（推荐）
+
+使用以下命令自动下载最新版本并安装：
+
+```bash
+#!/bin/bash
+LATEST_VERSION=$(curl -s https://api.github.com/repos/zhuinfra/netpeek/releases/latest | grep -oP '"tag_name": "\K[^"]+')
+wget -O /tmp/netpeek https://github.com/zhuinfra/netpeek/releases/download/${LATEST_VERSION}/netpeek-linux-amd64
+chmod +x /tmp/netpeek
+sudo mv /tmp/netpeek /usr/local/bin/
+netpeek --version
+```
+
+将上述内容保存为install.sh并执行，或直接复制粘贴到终端中运行。
+
+### 方法二：从源码构建
+
 ```bash
 # 克隆仓库
 git clone https://github.com/zhuinfra/netpeek.git
@@ -19,8 +36,11 @@ cd netpeek
 # 构建项目
 go build
 
+# 安装到系统PATH目录（可选）
+sudo mv netpeek /usr/local/bin/
+
 # 运行应用
-./netpeek --help
+netpeek --help
 ```
 
 ## 使用方法

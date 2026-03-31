@@ -1,5 +1,5 @@
 # Binaries for programs and plugins
-netpeek
+netpeek*
 
 # Test binary, built with `go test -c`
 *.test
