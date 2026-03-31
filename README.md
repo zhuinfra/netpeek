@@ -1,69 +1,92 @@
 # NetPeek
 
-Network monitoring command-line tool built with Go.
+使用Go语言开发的网络监测命令行工具。
 
-## Features
+## 功能特性
 
-- **IP Lookup**: Check public IP address from multiple sources (both domestic and international)
-- **WebSocket Test**: Test WebSocket connections with support for ws:// and wss:// protocols
+- **IP查询**: 从多个国内外源获取并显示您的公网IP地址
+- **WebSocket测试**: 支持ws://和wss://协议的WebSocket连接测试
+- **HTTP网站检测**: 测试网站访问情况，支持设置测试轮数，显示详细性能指标
+- **DNS劫持检测**: 通过本地DNS和多个公共DNS服务器对比检测潜在的DNS劫持
 
-## Installation
+## 安装
 
 ```bash
-# Clone the repository
+# 克隆仓库
 git clone https://github.com/zhuinfra/netpeek.git
 cd netpeek
 
-# Build the project
+# 构建项目
 go build
 
-# Run the application
+# 运行应用
 ./netpeek --help
 ```
 
-## Usage
+## 使用方法
 
-### IP Lookup
+### IP查询
 ```bash
 ./netpeek ip
 ```
 
-This will display your public IP address from multiple sources:
-- Domestic: Bilibili API and Tencent API
-- International: Cloudflare API and IPinfo.io API
+该命令会从多个源获取并显示您的公网IP地址：
+- 国内源：B站API和腾讯API
+- 国外源：Cloudflare API和IPinfo.io API
 
-### WebSocket Test
+### WebSocket测试
 ```bash
 ./netpeek ws <websocket-url>
 
-# Example
+# 示例
 ./netpeek ws wss://echo.websocket.org
 ```
 
-## Project Structure
+### HTTP网站检测
+```bash
+./netpeek http [-n/--num-rounds <轮数>] <网址>
 
-```
-netpeek/
-├── main.go              # Main application entry point
-├── ip/                  # IP lookup functionality
-│   └── ip.go
-├── websocket/           # WebSocket testing functionality
-│   └── ws.go
-├── utils/               # Utility functions (future use)
-├── go.mod               # Go module definition
-├── go.sum               # Dependency checksums
-└── README.md            # This file
+# 示例 (默认3轮)
+./netpeek http https://www.baidu.com
+
+# 示例 (自定义5轮)
+./netpeek http -n 5 https://httpbin.org/get
 ```
 
-## Adding New Features
+该命令会测试网站的访问情况，并显示以下性能指标：
+- 状态码
+- 响应大小
+- DNS查询时间
+- TCP连接时间
+- TLS握手时间
+- 首字节时间(TTFB)
+- 下载时间
+- 总时间
 
-To add new features to NetPeek:
+同时会提供多轮测试的统计信息（最快、最慢、平均时间）和评分。
 
-1. Create a new directory at the root level for your feature (similar to `ip/` and `websocket/`)
-2. Implement the feature in that directory
-3. Add a new command case in `main.go`
-4. Update the help information in the printHelp() function
+### DNS劫持检测
+```bash
+./netpeek dns [-t <记录类型>] <域名>
 
-## License
+# 示例 (默认IPv4 A记录)
+./netpeek dns www.example.com
+
+# 示例 (IPv6 AAAA记录)
+./netpeek dns -t AAAA www.example.com
+```
+
+该命令会通过以下DNS服务器进行查询对比：
+- 本地DNS服务器
+- 阿里云DNS (223.5.5.5)
+- Google DNS (8.8.8.8)
+
+检测结果包括：
+- CNAME解析链
+- 各DNS服务器返回的IP地址
+- 响应时间
+- 劫持风险分析
+
+## 许可证
 
 MIT

@@ -6,9 +6,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptrace"
+	"os"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/olekukonko/tablewriter"
 )
 
 // TestResult 存储单次测试的结果
@@ -208,52 +211,75 @@ func calculateStatistics(results []TestResult) TestStatistics {
 
 // printDetailedResult 打印详细测试结果
 func printDetailedResult(result TestResult) {
-	fmt.Println("┌────────────────────────────┬────────────┐")
-	fmt.Println("│ Metric                     │ Result     │")
-	fmt.Println("├────────────────────────────┼────────────┤")
-	fmt.Printf("│ Status Code                │ %d %s │\n", result.StatusCode, strings.Split(result.StatusText, " ")[1])
-	fmt.Printf("│ Response Size              │ %s      │\n", formatSize(result.ResponseSize))
-	fmt.Printf("│ DNS Lookup                 │ %s      │\n", formatDuration(result.DNSLookup))
-	fmt.Printf("│ TCP Connection             │ %s      │\n", formatDuration(result.TCPConnection))
+	// 创建表格
+	table := tablewriter.NewWriter(os.Stdout)
+
+	// 设置表格
+	table.Header("Metric", "Result")
+
+	// 添加数据行
+	table.Append("Status Code", fmt.Sprintf("%d %s", result.StatusCode, strings.Split(result.StatusText, " ")[1]))
+	table.Append("Response Size", formatSize(result.ResponseSize))
+	table.Append("DNS Lookup", formatDuration(result.DNSLookup))
+	table.Append("TCP Connection", formatDuration(result.TCPConnection))
 
 	if result.TLSHandshake > 0 {
-		fmt.Printf("│ TLS Handshake              │ %s      │\n", formatDuration(result.TLSHandshake))
+		table.Append("TLS Handshake", formatDuration(result.TLSHandshake))
 	} else {
-		fmt.Println("│ TLS Handshake              │ N/A        │")
+		table.Append("TLS Handshake", "N/A")
 	}
 
-	fmt.Printf("│ Time To First Byte (TTFB)  │ %s      │\n", formatDuration(result.TTFB))
-	fmt.Printf("│ Download Time              │ %s      │\n", formatDuration(result.DownloadTime))
-	fmt.Printf("│ Total Time                 │ %s      │\n", formatDuration(result.TotalTime))
-	fmt.Println("└────────────────────────────┴────────────┘")
+	table.Append("Time To First Byte (TTFB)", formatDuration(result.TTFB))
+	table.Append("Download Time", formatDuration(result.DownloadTime))
+	table.Append("Total Time", formatDuration(result.TotalTime))
+
+	// 渲染表格
+	table.Render()
 	fmt.Println()
 }
 
 // printErrorResult 打印错误结果
 func printErrorResult(result TestResult) {
-	fmt.Println("┌────────────────────────────┬────────────┐")
-	fmt.Println("│ Metric                     │ Result     │")
-	fmt.Println("├────────────────────────────┼────────────┤")
-	fmt.Printf("│ Status                     │ Error      │\n")
-	fmt.Printf("│ Error Message              │ %s │\n", truncateString(result.Error.Error(), 14))
-	fmt.Println("└────────────────────────────┴────────────┘")
+	// 创建表格
+	table := tablewriter.NewWriter(os.Stdout)
+
+	// 设置表格
+	table.Header("Metric", "Result")
+
+	// 添加数据行
+	table.Append("Status", "Error")
+	table.Append("Error Message", truncateString(result.Error.Error(), 50))
+
+	// 渲染表格
+	table.Render()
 	fmt.Println()
 }
 
 // printStatistics 打印统计信息
 func printStatistics(stats TestStatistics) {
-	fmt.Println("Statistics", fmt.Sprintf("(%d runs)", stats.Rounds))
+	fmt.Printf("Statistics (%d runs)\n", stats.Rounds)
+	fmt.Println()
 
 	if stats.Success > 0 {
-		fmt.Printf("  Fastest: %s\n", formatDuration(stats.Fastest))
-		fmt.Printf("  Slowest: %s\n", formatDuration(stats.Slowest))
-		fmt.Printf("  Average: %s\n", formatDuration(stats.Average))
+		// 创建表格
+		table := tablewriter.NewWriter(os.Stdout)
+
+		// 设置表格
+		table.Header("Metric", "Value")
+
+		// 添加数据行
+		table.Append("Fastest", formatDuration(stats.Fastest))
+		table.Append("Slowest", formatDuration(stats.Slowest))
+		table.Append("Average", formatDuration(stats.Average))
+
+		if stats.Failed > 0 {
+			table.Append("Failed", fmt.Sprintf("%d", stats.Failed))
+		}
+
+		// 渲染表格
+		table.Render()
 	} else {
 		fmt.Println("  No successful runs")
-	}
-
-	if stats.Failed > 0 {
-		fmt.Printf("  Failed: %d\n", stats.Failed)
 	}
 
 	fmt.Println()

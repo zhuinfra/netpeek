@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/urfave/cli/v3"
 
+	"github.com/zhuinfra/netpeek/dns"
 	"github.com/zhuinfra/netpeek/http"
 	"github.com/zhuinfra/netpeek/ip"
 	"github.com/zhuinfra/netpeek/websocket"
@@ -41,21 +41,20 @@ func main() {
 				Usage:   "Test website access",
 				Description: "Test website access performance with customizable rounds.\n" +
 					"Provides detailed metrics including DNS lookup, TCP connection, TLS handshake, TTFB, and total time.",
+				Flags: []cli.Flag{
+					&cli.IntFlag{
+						Name:    "num-rounds",
+						Aliases: []string{"n"},
+						Usage:   "Number of test rounds",
+						Value:   3,
+					},
+				},
 				Action: func(ctx context.Context, c *cli.Command) error {
 					if c.NArg() < 1 {
 						return fmt.Errorf("Error: URL is required")
 					}
 					url := c.Args().First()
-					rounds := 3 // 默认3轮
-					if c.NArg() >= 2 {
-						roundsStr := c.Args().Get(1)
-						// 转换为整数
-						if roundsInt, err := strconv.Atoi(roundsStr); err == nil {
-							rounds = roundsInt
-						} else {
-							return fmt.Errorf("Error: Rounds must be a valid number")
-						}
-					}
+					rounds := c.Int("num-rounds")
 					http.TestWebsite(url, rounds)
 					return nil
 				},
@@ -76,32 +75,25 @@ func main() {
 				},
 			},
 			{
-				Name:        "ping",
-				Aliases:     []string{"p"},
-				Usage:       "Check network connectivity",
-				Description: "Check network connectivity to specified hosts.",
-				Action: func(ctx context.Context, c *cli.Command) error {
-					fmt.Println("Ping command not implemented yet")
-					return nil
+				Name:        "dns",
+				Aliases:     []string{"dns-check"},
+				Usage:       "Check for DNS hijacking",
+				Description: "Check for DNS hijacking by comparing results from multiple DNS servers (Local, Aliyun, Cloudflare, Google).",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "type",
+						Aliases: []string{"t"},
+						Usage:   "DNS record type (A for IPv4, AAAA for IPv6)",
+						Value:   "A",
+					},
 				},
-			},
-			{
-				Name:        "speed",
-				Aliases:     []string{"s"},
-				Usage:       "Test network speed",
-				Description: "Test network upload and download speeds.",
 				Action: func(ctx context.Context, c *cli.Command) error {
-					fmt.Println("Speed test command not implemented yet")
-					return nil
-				},
-			},
-			{
-				Name:        "scan",
-				Aliases:     []string{"sc"},
-				Usage:       "Scan network ports",
-				Description: "Scan network ports on specified hosts.",
-				Action: func(ctx context.Context, c *cli.Command) error {
-					fmt.Println("Port scan command not implemented yet")
+					if c.NArg() < 1 {
+						return fmt.Errorf("Error: Domain is required")
+					}
+					domain := c.Args().First()
+					queryType := c.String("type")
+					dns.CheckHijacking(domain, queryType)
 					return nil
 				},
 			},
